@@ -77,6 +77,32 @@ The app already calls `supabase.auth.signInWithOAuth(...)` for both buttons — 
 
 Skip this if email/password is enough for now — nothing else in the app depends on it.
 
+### 1.8 Set up real email sending (required before real users sign up)
+
+Supabase's built-in email sender is **testing-only** and rate-limited to a
+handful of emails per hour — fine for your own testing, but it will block
+real signups almost immediately. Fix it once, permanently, with a free
+[Resend](https://resend.com) account:
+
+1. **[resend.com](https://resend.com)** → sign up (GitHub sign-in is fastest).
+2. Dashboard → **API Keys** → **Create API Key** → copy it (starts with `re_...`).
+   You don't need to verify a custom domain to start — Resend lets you send
+   from `onboarding@resend.dev` immediately.
+3. Supabase Dashboard → **Authentication** → **Emails** → **SMTP Settings** →
+   toggle **Enable Custom SMTP** and fill in:
+
+   | Field | Value |
+   |---|---|
+   | Sender email | `onboarding@resend.dev` (or your own verified domain later) |
+   | Sender name | `Journal by Noel` |
+   | Host | `smtp.resend.com` |
+   | Port | `465` |
+   | Username | `resend` |
+   | Password | *(your Resend API key)* |
+
+4. Save. Confirmation, password-reset, and any future transactional emails
+   now go through Resend instead of Supabase's rate-limited default.
+
 ---
 
 ## Part 2 — GitHub
@@ -132,11 +158,11 @@ Click **Deploy**. It takes about a minute.
 Once deployed, Vercel gives you a URL like `https://journal-by-noel.vercel.app`.
 
 1. Back in Supabase → **Authentication** → **URL Configuration**:
-   - **Site URL**: change to `https://journal-by-noel.vercel.app`
+   - **Site URL**: change to `https://journal-by-noel.vercel.app` — **include the `https://`**. If Supabase can't match the redirect it was asked for against an allowed URL, it silently falls back to this field verbatim, protocol and all, so a bare domain here breaks every auth redirect rather than erroring loudly.
    - **Redirect URLs**: add `https://journal-by-noel.vercel.app/auth/callback` (keep the `localhost` one too, so local dev keeps working)
 2. Save.
 
-Without this step, email confirmation/password-reset/OAuth links will redirect to the wrong place once you're live.
+Without this step, email confirmation/password-reset/OAuth links will redirect to the wrong place once you're live. If they still do after this, double check neither field has a stray bare domain (no `https://`) or missing `/auth/callback` path.
 
 ### 3.5 Try it
 
