@@ -14,9 +14,13 @@ function VerifyEmailContent() {
   const [sending, setSending] = useState(false);
 
   async function handleResend() {
+    if (!email) {
+      setError("No email on file — go back and sign up again.");
+      return;
+    }
     setSending(true);
     setError(null);
-    const result = await resendVerificationEmail();
+    const result = await resendVerificationEmail(email);
     setSending(false);
     if (!result.ok) {
       setError(result.error ?? "Couldn't resend — try again in a moment.");

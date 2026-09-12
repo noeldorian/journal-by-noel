@@ -27,7 +27,7 @@ interface AuthContextValue {
   login: (opts: { email: string; password: string; rememberMe?: boolean }) => Promise<AuthResult>;
   loginWithProvider: (provider: "google" | "apple") => Promise<AuthResult>;
   logout: () => Promise<void>;
-  resendVerificationEmail: () => Promise<AuthResult>;
+  resendVerificationEmail: (email: string) => Promise<AuthResult>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -95,16 +95,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
-  const resendVerificationEmail = useCallback(async () => {
-    if (!session?.user?.email) return { ok: false, error: "No email on file." };
+  const resendVerificationEmail = useCallback(async (email: string) => {
+    // Deliberately takes `email` as an argument rather than reading it off
+    // the session: there IS no session yet at this point in the flow — you
+    // aren't signed in until you confirm — so the caller (the verify-email
+    // page) passes the address from its own URL instead.
+    if (!email) return { ok: false, error: "No email on file." };
     const { error } = await supabase.auth.resend({
       type: "signup",
-      email: session.user.email,
+      email,
       options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
     });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
-  }, [session]);
+  }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
     status,
