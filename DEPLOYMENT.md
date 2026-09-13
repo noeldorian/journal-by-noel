@@ -170,6 +170,51 @@ Open your Vercel URL, sign up with a real email address you can check, click the
 
 ---
 
+## Part 4 — Premium subscriptions (Stripe)
+
+Free tier: 1 account, 10 trades/month. Premium ($15/month) removes both caps. This needs a Stripe account and three env vars.
+
+### 4.1 Create the product and price
+
+1. **[stripe.com](https://stripe.com)** → sign up (or log in). Keep **test mode** on until you're ready to charge real cards.
+2. **Product catalog → Add product**: name `Premium`, pricing **Recurring**, `$15.00`, **Monthly**, USD.
+3. Copy the **Price ID** (`price_...`).
+4. **Developers → API keys** → copy the **Secret key** (`sk_test_...`).
+
+### 4.2 Create the webhook endpoint
+
+The webhook is what keeps Supabase in sync with Stripe (who's subscribed, who cancelled, etc.) — it's the only thing ever allowed to write to the `subscriptions` table.
+
+**Dashboard → Developers → Webhooks → Add endpoint**:
+- Endpoint URL: `https://<your-domain>/api/stripe/webhook`
+- Events to send: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+
+After creating it, click into the endpoint and copy its **Signing secret** (`whsec_...`).
+
+(If your assistant has a Stripe secret key already, this can be done in one API call instead — `POST https://api.stripe.com/v1/webhook_endpoints` — which returns the signing secret directly in the response.)
+
+### 4.3 Set the three env vars
+
+Locally in `.env.local`, and in Vercel → Project → Settings → Environment Variables (Production **and** Preview):
+
+```bash
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PREMIUM_PRICE_ID=price_...
+```
+
+Redeploy after adding these to Vercel — env var changes only apply to new deployments.
+
+### 4.4 Test it
+
+Stripe's test mode accepts a magic card number: `4242 4242 4242 4242`, any future expiry, any CVC, any ZIP. From Settings → Billing → **Upgrade to Premium**, complete checkout with that card, and you should land back on Settings with a "Welcome to Premium" toast and the plan badge flipped to Premium.
+
+### 4.5 Go live
+
+When ready to accept real payments: flip Stripe out of test mode, create a **live-mode** Product/Price (test and live are separate), repeat 4.1–4.3 with the live keys, and update `STRIPE_PREMIUM_PRICE_ID` accordingly.
+
+---
+
 ## Ongoing: shipping changes
 
 Every `git push` to `main` triggers a new Vercel deployment automatically. Typical loop:
@@ -186,3 +231,5 @@ git push
 - **Background writes aren't retried.** Every trade/account/etc. write happens optimistically (the UI updates instantly, then syncs to Supabase in the background). If that background write fails — e.g. a dropped connection — it's only logged to the browser console, not surfaced to the user. Fine for a single-person journal; worth hardening if this becomes collaborative or higher-stakes.
 - **Trade screenshots are public.** The `trade-screenshots` storage bucket is public-read so `<img>` tags can load them directly without signed URLs. Anyone with the exact URL (which includes your user id and a random suffix) could view an image, but URLs aren't discoverable or listed anywhere. If you want stricter privacy, switch the bucket to private and generate signed URLs instead (`supabase.storage.from(...).createSignedUrl(...)`).
 - **Two-factor authentication** isn't wired up (Settings just links to Supabase's own docs for it). Supabase supports real TOTP-based MFA if you want to add it later.
+- **Stripe test vs. live mode are separate universes** — separate API keys, separate Products/Prices, separate webhook endpoints. Switching to live mode means redoing Part 4.1–4.3 with live-mode values, not just flipping a toggle.
+- **The webhook is the only source of truth for who's Premium.** The `subscriptions` table's Row Level Security policy is read-only for regular users specifically so nobody can grant themselves Premium by writing to it directly — all writes go through `/api/stripe/webhook` using the service-role key, triggered only by real Stripe events.
