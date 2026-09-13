@@ -2,7 +2,7 @@ import { FREE_TIER_LIMITS, isPremiumStatus } from "./types";
 import type { Account, Subscription, Trade } from "./types";
 
 export function isPremium(subscription: Subscription) {
-  return isPremiumStatus(subscription.status);
+  return isPremiumStatus(subscription.status, subscription.currentPeriodEnd);
 }
 
 function currentMonthKey() {

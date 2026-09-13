@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EquityChart } from "@/components/charts/equity-chart";
 import { DailyHeatmap } from "@/components/charts/daily-heatmap";
+import { RewardsCard } from "@/components/rewards/rewards-card";
+import { SundayReviewBanner } from "@/components/dashboard/sunday-review-banner";
 import { useAppStore } from "@/lib/store";
 import { useUiStore } from "@/lib/ui-store";
 import { computeAggregateStats, computeTradeMetrics, groupBy } from "@/lib/calculations";
@@ -112,6 +114,9 @@ export default function DashboardPage() {
           <Button variant="primary" onClick={openAddTrade}>+ Add Trade</Button>
         </div>
       </div>
+
+      <RewardsCard />
+      <SundayReviewBanner />
 
       {rangedTrades.length === 0 ? (
         <Card>

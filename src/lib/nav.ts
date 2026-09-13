@@ -7,6 +7,7 @@ import {
   Brain,
   Wallet,
   PiggyBank,
+  Quote,
   ShieldAlert,
   Settings,
   type LucideIcon,
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "Accounts", href: "/accounts", icon: Wallet },
   { label: "Payouts", href: "/payouts", icon: PiggyBank },
+  { label: "Daily Quote", href: "/quote", icon: Quote },
   { label: "Risk", href: "/risk", icon: ShieldAlert },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import {
   deleteAccountRow, deletePayoutRow, deleteStrategyRow, deleteTradeRow, deleteTradeRows,
-  fetchAppDatabase, fetchSubscription, insertAccount, insertCheckIn, insertNotification, insertPayout, insertStrategy,
-  insertTag, insertTrade, insertTrades, markAllNotificationsReadRow, markNotificationReadRow,
-  saveProfile, saveSettings, setActiveAccountId, updateAccountRow, updateCheckInRow,
-  updatePayoutRow, updateStrategyRow, updateTradeRow,
+  fetchAppDatabase, fetchRewardPoints, fetchSubscription, insertAccount, insertCheckIn, insertNotification,
+  insertPayout, insertStrategy, insertTag, insertTrade, insertTrades, markAllNotificationsReadRow,
+  markNotificationReadRow, saveProfile, saveSettings, setActiveAccountId, updateAccountRow, updateCheckInRow,
+  updatePayoutRow, updateStrategyRow, updateTradeRow, upsertWeeklyReview,
 } from "./supabase/queries";
 import type {
   Account,
@@ -16,6 +16,7 @@ import type {
   Trade,
   UserProfile,
   UserSettings,
+  WeeklyReview,
 } from "./types";
 
 // Every mutation below follows the same shape: update local state immediately
@@ -67,7 +68,10 @@ interface AppState extends AppDatabase {
   updatePayout: (id: string, partial: Partial<Payout>) => void;
   deletePayout: (id: string) => void;
 
+  saveWeeklyReview: (review: WeeklyReview) => void;
+
   refreshSubscription: () => Promise<void>;
+  refreshRewardPoints: () => Promise<void>;
 }
 
 const emptyDb = (): AppDatabase => ({
@@ -94,6 +98,9 @@ const emptyDb = (): AppDatabase => ({
   notifications: [],
   subscription: { status: "free", cancelAtPeriodEnd: false },
   payouts: [],
+  rewardPoints: { balance: 0, lifetimeEarned: 0 },
+  rewardPointEvents: [],
+  weeklyReviews: [],
 });
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -267,10 +274,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (userId) deletePayoutRow(userId, id).catch(logFailure("deletePayout"));
   },
 
+  saveWeeklyReview: (review) => {
+    const existingIndex = get().weeklyReviews.findIndex((w) => w.weekStart === review.weekStart);
+    set({
+      weeklyReviews:
+        existingIndex >= 0
+          ? get().weeklyReviews.map((w, i) => (i === existingIndex ? review : w))
+          : [review, ...get().weeklyReviews],
+    });
+    const userId = get().userId;
+    if (userId) upsertWeeklyReview(userId, review).catch(logFailure("saveWeeklyReview"));
+  },
+
   refreshSubscription: async () => {
     const userId = get().userId;
     if (!userId) return;
     const subscription = await fetchSubscription(userId);
     set({ subscription });
+  },
+
+  refreshRewardPoints: async () => {
+    const userId = get().userId;
+    if (!userId) return;
+    const { rewardPoints, rewardPointEvents } = await fetchRewardPoints(userId);
+    set({ rewardPoints, rewardPointEvents });
   },
 }));

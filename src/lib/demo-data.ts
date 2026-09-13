@@ -1,6 +1,7 @@
 import { Rng } from "./seeded-random";
 import { INSTRUMENTS } from "./instruments";
 import { computeTradeMetrics } from "./calculations";
+import { mondayOf } from "./weekly-review";
 import { toLocalDateStr, uid } from "./utils";
 import type {
   Account,
@@ -11,11 +12,13 @@ import type {
   NotificationItem,
   Payout,
   PsychTag,
+  RewardPointEvent,
   Session,
   Strategy,
   Trade,
   UserProfile,
   UserSettings,
+  WeeklyReview,
 } from "./types";
 
 export const DEFAULT_TAGS = [
@@ -478,6 +481,26 @@ export function generateDemoDatabase(): AppDatabase {
     { id: uid("payout"), accountId: accounts[0].id, date: toLocalDateStr(new Date(now.getTime() - 3 * 86400000)), amount: 900, type: "Prop Payout", status: "Pending", method: "Wire", createdAt: new Date(now.getTime() - 3 * 86400000).toISOString() },
   ];
 
+  const rewardPointEvents: RewardPointEvent[] = [
+    { id: uid("rpe"), date: toLocalDateStr(new Date(now.getTime() - 2 * 86400000)), points: 10, reason: "good_day", createdAt: new Date(now.getTime() - 2 * 86400000).toISOString() },
+    { id: uid("rpe"), date: toLocalDateStr(new Date(now.getTime() - 5 * 86400000)), points: 10, reason: "good_day", createdAt: new Date(now.getTime() - 5 * 86400000).toISOString() },
+    { id: uid("rpe"), date: toLocalDateStr(new Date(now.getTime() - 9 * 86400000)), points: 10, reason: "good_day", createdAt: new Date(now.getTime() - 9 * 86400000).toISOString() },
+  ];
+
+  const lastWeekMonday = new Date(now.getTime() - 14 * 86400000);
+  const weeklyReviews: WeeklyReview[] = [
+    {
+      id: uid("review"),
+      weekStart: mondayOf(toLocalDateStr(lastWeekMonday)),
+      mood: "🙂",
+      wentWell: "Stuck to the NY Liquidity Reversal setup and skipped the choppy midday chop I usually get pulled into.",
+      toImprove: "Sized up too fast after two green days in a row — worth slowing back down.",
+      nextWeekFocus: "One A+ setup a day, max. Quality over quantity.",
+      createdAt: lastWeekMonday.toISOString(),
+      updatedAt: lastWeekMonday.toISOString(),
+    },
+  ];
+
   return {
     user,
     settings,
@@ -490,6 +513,9 @@ export function generateDemoDatabase(): AppDatabase {
     notifications,
     subscription: { status: "free", cancelAtPeriodEnd: false },
     payouts,
+    rewardPoints: { balance: 30, lifetimeEarned: 30 },
+    rewardPointEvents,
+    weeklyReviews,
   };
 }
 

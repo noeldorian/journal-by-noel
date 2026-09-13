@@ -220,6 +220,55 @@ create table if not exists public.payouts (
 );
 
 -- ============================================================================
+-- REWARD POINTS — earned by logging a disciplined day (a "post" check-in
+-- where you followed your plan, didn't overtrade, didn't revenge trade, and
+-- respected risk), redeemable for a free month of Premium. Only ever
+-- written by the server (the /api/rewards/* routes, using the service-role
+-- key) — same reasoning as subscriptions: nobody should be able to grant
+-- themselves points, or Premium, by writing to these tables directly.
+-- ============================================================================
+create table if not exists public.reward_points (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  balance integer not null default 0,
+  lifetime_earned integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.reward_point_events (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  date date not null,
+  points integer not null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+
+-- One "good_day" award per calendar day per user — the API route also
+-- checks this, but the constraint is what actually makes it airtight.
+create unique index if not exists reward_point_events_good_day_idx
+  on public.reward_point_events (user_id, date)
+  where reason = 'good_day';
+
+-- ============================================================================
+-- WEEKLY REVIEWS — the Sunday Review: a recap + reflection per trading
+-- week, keyed by the Monday that starts it. Ordinary user-owned content
+-- (no monetary stakes like reward_points/subscriptions), so it gets the
+-- same full read/write policy as trades or payouts.
+-- ============================================================================
+create table if not exists public.weekly_reviews (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  week_start date not null,
+  mood text,
+  went_well text,
+  to_improve text,
+  next_week_focus text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, week_start)
+);
+
+-- ============================================================================
 -- ROW LEVEL SECURITY — every table is private to its owning user
 -- ============================================================================
 alter table public.profiles enable row level security;
@@ -232,6 +281,9 @@ alter table public.notifications enable row level security;
 alter table public.custom_tags enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.payouts enable row level security;
+alter table public.reward_points enable row level security;
+alter table public.reward_point_events enable row level security;
+alter table public.weekly_reviews enable row level security;
 
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles
@@ -274,6 +326,19 @@ drop policy if exists "own payouts" on public.payouts;
 create policy "own payouts" on public.payouts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Read-only for the user — see the comment on the table definitions above.
+drop policy if exists "own reward points read" on public.reward_points;
+create policy "own reward points read" on public.reward_points
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "own reward point events read" on public.reward_point_events;
+create policy "own reward point events read" on public.reward_point_events
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "own weekly reviews" on public.weekly_reviews;
+create policy "own weekly reviews" on public.weekly_reviews
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ============================================================================
 -- AUTO-PROVISION a profile + settings row the moment someone signs up
 -- ============================================================================
@@ -301,6 +366,10 @@ begin
 
   insert into public.subscriptions (user_id, status)
   values (new.id, 'free')
+  on conflict (user_id) do nothing;
+
+  insert into public.reward_points (user_id)
+  values (new.id)
   on conflict (user_id) do nothing;
 
   return new;

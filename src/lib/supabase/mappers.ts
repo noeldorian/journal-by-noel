@@ -8,6 +8,8 @@ import type {
   NotificationItem,
   Payout,
   Priority,
+  RewardPointEvent,
+  RewardPoints,
   Session,
   Strategy,
   Subscription,
@@ -15,6 +17,7 @@ import type {
   TradingStyle,
   UserProfile,
   UserSettings,
+  WeeklyReview,
 } from "@/lib/types";
 
 export function accountToRow(a: Account, userId: string) {
@@ -318,5 +321,49 @@ export function rowToSubscription(r: Record<string, unknown> | null): Subscripti
     stripeCustomerId: (r?.stripe_customer_id as string) ?? undefined,
     currentPeriodEnd: (r?.current_period_end as string) ?? undefined,
     cancelAtPeriodEnd: r ? Boolean(r.cancel_at_period_end) : false,
+  };
+}
+
+export function rowToRewardPoints(r: Record<string, unknown> | null): RewardPoints {
+  return {
+    balance: r ? Number(r.balance) : 0,
+    lifetimeEarned: r ? Number(r.lifetime_earned) : 0,
+  };
+}
+
+export function rowToRewardPointEvent(r: Record<string, unknown>): RewardPointEvent {
+  return {
+    id: r.id as string,
+    date: r.date as string,
+    points: Number(r.points),
+    reason: r.reason as string,
+    createdAt: r.created_at as string,
+  };
+}
+
+export function weeklyReviewToRow(w: WeeklyReview, userId: string) {
+  return {
+    id: w.id,
+    user_id: userId,
+    week_start: w.weekStart,
+    mood: w.mood ?? null,
+    went_well: w.wentWell ?? null,
+    to_improve: w.toImprove ?? null,
+    next_week_focus: w.nextWeekFocus ?? null,
+    created_at: w.createdAt,
+    updated_at: w.updatedAt,
+  };
+}
+
+export function rowToWeeklyReview(r: Record<string, unknown>): WeeklyReview {
+  return {
+    id: r.id as string,
+    weekStart: r.week_start as string,
+    mood: (r.mood as string) ?? undefined,
+    wentWell: (r.went_well as string) ?? undefined,
+    toImprove: (r.to_improve as string) ?? undefined,
+    nextWeekFocus: (r.next_week_focus as string) ?? undefined,
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
   };
 }

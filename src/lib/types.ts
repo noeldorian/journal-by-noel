@@ -244,8 +244,53 @@ export const FREE_TIER_LIMITS = {
   maxTradesPerMonth: 10,
 } as const;
 
-export function isPremiumStatus(status: SubscriptionStatus) {
-  return status === "active" || status === "trialing";
+// A comped Premium month from redeeming reward points sets status "active"
+// with a real currentPeriodEnd 30 days out, but nothing ever flips it back
+// to "free" afterward the way a real Stripe subscription's webhook would —
+// there's no webhook for a redemption. So "active"/"trialing" alone isn't
+// enough: once there's an expiry on record, it has to still be in the
+// future. A real Stripe subscription's currentPeriodEnd keeps rolling
+// forward every billing cycle while genuinely active, so this never
+// penalizes a real subscriber — it only catches the comped-grant case (and,
+// as a side effect, a real subscription stuck in a bad state, which should
+// also not read as Premium).
+export function isPremiumStatus(status: SubscriptionStatus, currentPeriodEnd?: string) {
+  if (status !== "active" && status !== "trialing") return false;
+  if (!currentPeriodEnd) return true;
+  return new Date(currentPeriodEnd).getTime() > Date.now();
+}
+
+// Reward points: earned by logging a disciplined day (a "post" check-in
+// where you followed your plan, didn't overtrade, didn't revenge trade, and
+// respected risk), redeemable for a free month of Premium.
+export const REWARD_POINTS_PER_GOOD_DAY = 10;
+export const REWARD_POINTS_REDEMPTION_COST = 500;
+
+export interface RewardPoints {
+  balance: number;
+  lifetimeEarned: number;
+}
+
+export interface RewardPointEvent {
+  id: string;
+  date: string;
+  points: number;
+  reason: string;
+  createdAt: string;
+}
+
+// The Sunday Review: a weekly recap + reflection, keyed by the Monday that
+// starts the trading week it covers (so "this week" always resolves to one
+// row regardless of which day you open it on).
+export interface WeeklyReview {
+  id: string;
+  weekStart: string; // yyyy-MM-dd, always a Monday
+  mood?: string; // a single emoji
+  wentWell?: string;
+  toImprove?: string;
+  nextWeekFocus?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AppDatabase {
@@ -260,6 +305,9 @@ export interface AppDatabase {
   notifications: NotificationItem[];
   subscription: Subscription;
   payouts: Payout[];
+  rewardPoints: RewardPoints;
+  rewardPointEvents: RewardPointEvent[];
+  weeklyReviews: WeeklyReview[];
 }
 
 export type DateRangeKey = "today" | "week" | "month" | "year" | "custom";

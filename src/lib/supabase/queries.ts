@@ -5,16 +5,20 @@
 import { supabase } from "./client";
 import {
   accountToRow, checkInToRow, payoutToRow, profileToRow, rowToAccount, rowToCheckIn,
-  rowToNotification, rowToPayout, rowToProfile, rowToSettings, rowToStrategy, rowToSubscription, rowToTrade,
-  settingsToRow, strategyToRow, tradeToRow,
+  rowToNotification, rowToPayout, rowToProfile, rowToRewardPointEvent, rowToRewardPoints, rowToSettings,
+  rowToStrategy, rowToSubscription, rowToTrade, rowToWeeklyReview, settingsToRow, strategyToRow, tradeToRow,
+  weeklyReviewToRow,
 } from "./mappers";
 import type {
   Account, AppDatabase, DailyCheckIn, NotificationItem, Payout, Strategy, Trade, UserProfile, UserSettings,
+  WeeklyReview,
 } from "@/lib/types";
 
 export async function fetchAppDatabase(userId: string, email: string): Promise<AppDatabase> {
-  const [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes, payoutsRes] =
-    await Promise.all([
+  const [
+    profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes,
+    notificationsRes, subscriptionRes, payoutsRes, rewardPointsRes, rewardPointEventsRes, weeklyReviewsRes,
+  ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("accounts").select("*").eq("user_id", userId).order("created_at"),
@@ -25,9 +29,15 @@ export async function fetchAppDatabase(userId: string, email: string): Promise<A
       supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("payouts").select("*").eq("user_id", userId).order("date"),
+      supabase.from("reward_points").select("*").eq("user_id", userId).maybeSingle(),
+      supabase.from("reward_point_events").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("weekly_reviews").select("*").eq("user_id", userId).order("week_start", { ascending: false }),
     ]);
 
-  for (const res of [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes, payoutsRes]) {
+  for (const res of [
+    profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes,
+    notificationsRes, subscriptionRes, payoutsRes, rewardPointsRes, rewardPointEventsRes, weeklyReviewsRes,
+  ]) {
     if (res.error) throw res.error;
   }
 
@@ -46,6 +56,9 @@ export async function fetchAppDatabase(userId: string, email: string): Promise<A
     notifications: (notificationsRes.data ?? []).map(rowToNotification),
     subscription: rowToSubscription(subscriptionRes.data),
     payouts: (payoutsRes.data ?? []).map(rowToPayout),
+    rewardPoints: rowToRewardPoints(rewardPointsRes.data),
+    rewardPointEvents: (rewardPointEventsRes.data ?? []).map(rowToRewardPointEvent),
+    weeklyReviews: (weeklyReviewsRes.data ?? []).map(rowToWeeklyReview),
   };
 }
 
@@ -179,10 +192,28 @@ export async function deletePayoutRow(userId: string, id: string) {
   if (error) throw error;
 }
 
+export async function upsertWeeklyReview(userId: string, review: WeeklyReview) {
+  const { error } = await supabase.from("weekly_reviews").upsert(weeklyReviewToRow(review, userId), { onConflict: "id" });
+  if (error) throw error;
+}
+
 export async function fetchSubscription(userId: string) {
   const { data, error } = await supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle();
   if (error) throw error;
   return rowToSubscription(data);
+}
+
+export async function fetchRewardPoints(userId: string) {
+  const [pointsRes, eventsRes] = await Promise.all([
+    supabase.from("reward_points").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("reward_point_events").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+  ]);
+  if (pointsRes.error) throw pointsRes.error;
+  if (eventsRes.error) throw eventsRes.error;
+  return {
+    rewardPoints: rowToRewardPoints(pointsRes.data),
+    rewardPointEvents: (eventsRes.data ?? []).map(rowToRewardPointEvent),
+  };
 }
 
 export async function uploadScreenshot(userId: string, tradeId: string, file: File, stage: string): Promise<string> {

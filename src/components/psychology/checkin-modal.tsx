@@ -7,6 +7,8 @@ import { Label, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAppStore } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
+import { awardPointsForCheckIn } from "@/lib/rewards";
+import { REWARD_POINTS_PER_GOOD_DAY } from "@/lib/types";
 import { todayLocalDateStr, uid } from "@/lib/utils";
 import type { DailyCheckIn } from "@/lib/types";
 
@@ -41,6 +43,7 @@ function CheckInBody({
 }) {
   const addCheckIn = useAppStore((s) => s.addCheckIn);
   const updateCheckIn = useAppStore((s) => s.updateCheckIn);
+  const refreshRewardPoints = useAppStore((s) => s.refreshRewardPoints);
   const { push } = useToast();
 
   const [bias, setBias] = useState(existing?.bias ?? "");
@@ -67,6 +70,29 @@ function CheckInBody({
     if (existing) updateCheckIn(existing.id, payload);
     else addCheckIn(payload);
     push({ title: type === "pre" ? "Pre-market plan saved" : "Post-market review saved", tone: "success" });
+
+    // A disciplined day earns reward points — the server re-checks these
+    // same four flags itself before paying out, and a repeat save for a day
+    // that already got its points just comes back as a no-op.
+    if (
+      type === "post" &&
+      payload.followedPlan === true &&
+      payload.overtraded === false &&
+      payload.revengeTraded === false &&
+      payload.respectedRisk === true
+    ) {
+      awardPointsForCheckIn(payload.id)
+        .then((result) => {
+          if (result.awarded) {
+            push({ title: `+${REWARD_POINTS_PER_GOOD_DAY} points`, description: "Disciplined day, plan followed — nice work.", tone: "success" });
+            refreshRewardPoints();
+          }
+        })
+        .catch(() => {
+          // Non-critical — the day's still logged either way.
+        });
+    }
+
     onClose();
   }
 
