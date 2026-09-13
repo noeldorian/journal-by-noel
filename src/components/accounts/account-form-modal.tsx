@@ -5,8 +5,11 @@ import { Modal, ModalHeader, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { useAppStore } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
+import { canAddAccount } from "@/lib/premium";
+import { FREE_TIER_LIMITS } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import type { Account } from "@/lib/types";
 
@@ -41,8 +44,24 @@ export function AccountFormModal({ open, onClose, existing }: { open: boolean; o
 function AccountFormBody({ existing, onClose }: { existing?: Account | null; onClose: () => void }) {
   const addAccount = useAppStore((s) => s.addAccount);
   const updateAccount = useAppStore((s) => s.updateAccount);
+  const accounts = useAppStore((s) => s.accounts);
+  const subscription = useAppStore((s) => s.subscription);
   const { push } = useToast();
   const [draft, setDraft] = useState<Account>(existing ?? emptyAccount());
+
+  if (!existing && !canAddAccount(subscription, accounts)) {
+    return (
+      <>
+        <ModalHeader title="Account limit reached" subtitle="" onClose={onClose} />
+        <div className="p-6">
+          <UpgradePrompt
+            title={`Free plan is limited to ${FREE_TIER_LIMITS.maxAccounts} account`}
+            description="Upgrade to Premium for unlimited accounts, unlimited trades, and everything else in the journal."
+          />
+        </div>
+      </>
+    );
+  }
 
   function patch<K extends keyof Account>(key: K, value: Account[K]) {
     setDraft((d) => ({ ...d, [key]: value }));

@@ -5,7 +5,7 @@
 import { supabase } from "./client";
 import {
   accountToRow, checkInToRow, profileToRow, rowToAccount, rowToCheckIn,
-  rowToNotification, rowToProfile, rowToSettings, rowToStrategy, rowToTrade,
+  rowToNotification, rowToProfile, rowToSettings, rowToStrategy, rowToSubscription, rowToTrade,
   settingsToRow, strategyToRow, tradeToRow,
 } from "./mappers";
 import type {
@@ -13,7 +13,7 @@ import type {
 } from "@/lib/types";
 
 export async function fetchAppDatabase(userId: string, email: string): Promise<AppDatabase> {
-  const [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes] =
+  const [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
@@ -23,9 +23,10 @@ export async function fetchAppDatabase(userId: string, email: string): Promise<A
       supabase.from("custom_tags").select("name").eq("user_id", userId),
       supabase.from("check_ins").select("*").eq("user_id", userId).order("date"),
       supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle(),
     ]);
 
-  for (const res of [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes]) {
+  for (const res of [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes]) {
     if (res.error) throw res.error;
   }
 
@@ -42,6 +43,7 @@ export async function fetchAppDatabase(userId: string, email: string): Promise<A
     tags: (tagsRes.data ?? []).map((t) => t.name as string),
     checkIns: (checkInsRes.data ?? []).map(rowToCheckIn),
     notifications: (notificationsRes.data ?? []).map(rowToNotification),
+    subscription: rowToSubscription(subscriptionRes.data),
   };
 }
 
@@ -158,6 +160,12 @@ export async function insertNotification(userId: string, n: NotificationItem) {
     id: n.id, user_id: userId, title: n.title, body: n.body, type: n.type, read: n.read, created_at: n.createdAt,
   });
   if (error) throw error;
+}
+
+export async function fetchSubscription(userId: string) {
+  const { data, error } = await supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return rowToSubscription(data);
 }
 
 export async function uploadScreenshot(userId: string, tradeId: string, file: File, stage: string): Promise<string> {

@@ -9,6 +9,7 @@ import type {
   Priority,
   Session,
   Strategy,
+  Subscription,
   Trade,
   TradingStyle,
   UserProfile,
@@ -275,4 +276,13 @@ export function settingsToRow(s: Partial<UserSettings>) {
   if (s.weeklySummary !== undefined) row.weekly_summary = s.weeklySummary;
   if (s.sidebarCollapsed !== undefined) row.sidebar_collapsed = s.sidebarCollapsed;
   return row;
+}
+
+export function rowToSubscription(r: Record<string, unknown> | null): Subscription {
+  return {
+    status: (r?.status as Subscription["status"]) ?? "free",
+    stripeCustomerId: (r?.stripe_customer_id as string) ?? undefined,
+    currentPeriodEnd: (r?.current_period_end as string) ?? undefined,
+    cancelAtPeriodEnd: r ? Boolean(r.cancel_at_period_end) : false,
+  };
 }

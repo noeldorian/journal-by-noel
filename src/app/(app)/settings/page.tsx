@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  User, Sliders, Palette, BookText, Bell, Shield, Database, LogOut, Download, Trash2, Monitor, ExternalLink,
+  User, Sliders, Palette, BookText, Bell, Shield, Database, LogOut, Download, Trash2, Monitor, ExternalLink, CreditCard,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,14 @@ import { supabase } from "@/lib/supabase/client";
 import { seedDemoDataForCurrentUser } from "@/lib/supabase/seed-demo";
 import { tradesToCsv, downloadCsv } from "@/lib/csv";
 import { INSTRUMENT_LIST } from "@/lib/instruments";
+import { isPremium, tradesThisMonth } from "@/lib/premium";
+import { useBilling } from "@/lib/use-billing";
 import { cn, initials, todayLocalDateStr } from "@/lib/utils";
-import type { AccentColor, Session } from "@/lib/types";
+import { FREE_TIER_LIMITS, type AccentColor, type Session } from "@/lib/types";
 
 const SECTIONS = [
   { key: "profile", label: "Profile", icon: User },
+  { key: "billing", label: "Billing", icon: CreditCard },
   { key: "trading", label: "Trading", icon: Sliders },
   { key: "appearance", label: "Appearance", icon: Palette },
   { key: "journal", label: "Journal", icon: BookText },
@@ -38,8 +41,9 @@ const ACCENTS: { value: AccentColor; label: string; color: string }[] = [
   { value: "white", label: "White", color: "#f4f5f7" },
 ];
 
-export default function SettingsPage() {
+function SettingsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { logout } = useAuth();
   const { push } = useToast();
   const user = useAppStore((s) => s.user);
@@ -49,8 +53,12 @@ export default function SettingsPage() {
   const accounts = useAppStore((s) => s.accounts);
   const trades = useAppStore((s) => s.trades);
   const tags = useAppStore((s) => s.tags);
+  const subscription = useAppStore((s) => s.subscription);
+  const refreshSubscription = useAppStore((s) => s.refreshSubscription);
+  const { startCheckout, openPortal, loading: billingLoading, error: billingError } = useBilling();
 
-  const [section, setSection] = useState<SectionKey>("profile");
+  const initialSection = (SECTIONS.find((s) => s.key === searchParams.get("section"))?.key ?? "profile") as SectionKey;
+  const [section, setSection] = useState<SectionKey>(initialSection);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
@@ -60,6 +68,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLastSignInAt(data.user?.last_sign_in_at ?? null));
+  }, []);
+
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    if (checkout === "success") {
+      push({ title: "Welcome to Premium", tone: "success", description: "Your subscription is now active." });
+      refreshSubscription();
+    } else if (checkout === "cancelled") {
+      push({ title: "Checkout cancelled", tone: "info" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function saveProfile() {
@@ -192,6 +211,51 @@ export default function SettingsPage() {
                 <Button variant="primary" onClick={saveProfile}>Save changes</Button>
               </CardContent>
             </Card>
+          )}
+
+          {section === "billing" && (
+            <div className="space-y-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Plan</CardTitle>
+                  <Badge tone={isPremium(subscription) ? "accent" : "neutral"}>
+                    {isPremium(subscription) ? "Premium" : "Free"}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isPremium(subscription) ? (
+                    <>
+                      <p className="text-[13px] text-text-secondary">
+                        $15/month — unlimited trades and accounts.
+                        {subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
+                          <> Cancels on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}.</>
+                        )}
+                        {!subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
+                          <> Renews on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}.</>
+                        )}
+                      </p>
+                      <Button variant="secondary" onClick={openPortal} loading={billingLoading === "portal"}>
+                        Manage billing
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        <UsageBar label="Trades this month" used={tradesThisMonth(trades)} limit={FREE_TIER_LIMITS.maxTradesPerMonth} />
+                        <UsageBar label="Accounts" used={accounts.length} limit={FREE_TIER_LIMITS.maxAccounts} />
+                      </div>
+                      <p className="text-[13px] text-text-secondary">
+                        Upgrade to Premium for $15/month — unlimited trades, unlimited accounts, everything unlocked.
+                      </p>
+                      <Button variant="primary" onClick={startCheckout} loading={billingLoading === "checkout"}>
+                        Upgrade to Premium
+                      </Button>
+                    </>
+                  )}
+                  {billingError && <p className="text-[12.5px] text-neg">{billingError}</p>}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {section === "trading" && (
@@ -374,11 +438,34 @@ export default function SettingsPage() {
   );
 }
 
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
 function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-[13px] text-text-secondary">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[12.5px]">
+        <span className="text-text-secondary">{label}</span>
+        <span className="font-medium text-text-primary">{used} / {limit}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-surface-2">
+        <div className={cn("h-full rounded-full transition-all", pct >= 100 ? "bg-neg" : pct >= 70 ? "bg-warning" : "bg-accent")} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }

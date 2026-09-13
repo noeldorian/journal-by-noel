@@ -163,6 +163,23 @@ create table if not exists public.custom_tags (
 );
 
 -- ============================================================================
+-- SUBSCRIPTIONS — one row per user, mirrors their Stripe subscription state.
+-- Only ever written by the server (webhook route, using the service-role
+-- key) — regular users get read-only access so nobody can grant themselves
+-- Premium by writing to this table directly.
+-- ============================================================================
+create table if not exists public.subscriptions (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  stripe_customer_id text unique,
+  stripe_subscription_id text unique,
+  status text not null default 'free',
+  price_id text,
+  current_period_end timestamptz,
+  cancel_at_period_end boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+-- ============================================================================
 -- ROW LEVEL SECURITY — every table is private to its owning user
 -- ============================================================================
 alter table public.profiles enable row level security;
@@ -173,6 +190,7 @@ alter table public.trades enable row level security;
 alter table public.check_ins enable row level security;
 alter table public.notifications enable row level security;
 alter table public.custom_tags enable row level security;
+alter table public.subscriptions enable row level security;
 
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles
@@ -206,6 +224,11 @@ drop policy if exists "own tags" on public.custom_tags;
 create policy "own tags" on public.custom_tags
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Read-only for the user — see the comment on the table definition above.
+drop policy if exists "own subscription read" on public.subscriptions;
+create policy "own subscription read" on public.subscriptions
+  for select using (auth.uid() = user_id);
+
 -- ============================================================================
 -- AUTO-PROVISION a profile + settings row the moment someone signs up
 -- ============================================================================
@@ -229,6 +252,10 @@ begin
 
   insert into public.user_settings (user_id)
   values (new.id)
+  on conflict (user_id) do nothing;
+
+  insert into public.subscriptions (user_id, status)
+  values (new.id, 'free')
   on conflict (user_id) do nothing;
 
   return new;

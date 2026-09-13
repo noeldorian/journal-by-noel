@@ -207,6 +207,24 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+export type SubscriptionStatus = "free" | "active" | "trialing" | "past_due" | "canceled" | "incomplete";
+
+export interface Subscription {
+  status: SubscriptionStatus;
+  stripeCustomerId?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd: boolean;
+}
+
+export const FREE_TIER_LIMITS = {
+  maxAccounts: 1,
+  maxTradesPerMonth: 10,
+} as const;
+
+export function isPremiumStatus(status: SubscriptionStatus) {
+  return status === "active" || status === "trialing";
+}
+
 export interface AppDatabase {
   user: UserProfile | null;
   settings: UserSettings;
@@ -217,6 +235,7 @@ export interface AppDatabase {
   tags: string[];
   checkIns: DailyCheckIn[];
   notifications: NotificationItem[];
+  subscription: Subscription;
 }
 
 export type DateRangeKey = "today" | "week" | "month" | "year" | "custom";

@@ -481,6 +481,7 @@ export function generateDemoDatabase(): AppDatabase {
     tags: DEFAULT_TAGS,
     checkIns,
     notifications,
+    subscription: { status: "free", cancelAtPeriodEnd: false },
   };
 }
 

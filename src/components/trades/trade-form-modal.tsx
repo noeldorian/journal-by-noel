@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { TagInput } from "@/components/trades/tag-input";
 import { ScreenshotSlot } from "@/components/trades/screenshot-uploader";
+import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { useUiStore } from "@/lib/ui-store";
 import { useAppStore } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { computeTradeMetrics } from "@/lib/calculations";
 import { INSTRUMENT_LIST } from "@/lib/instruments";
+import { canAddTrade, tradesThisMonth } from "@/lib/premium";
+import { FREE_TIER_LIMITS } from "@/lib/types";
 import { formatCurrency, formatDuration, formatR, pnlColorClass, todayLocalDateStr, uid } from "@/lib/utils";
 import type { Direction, InstrumentSymbol, PsychTag, Session, Trade, TradeScreenshot } from "@/lib/types";
 
@@ -70,6 +73,7 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
   const activeAccountId = useAppStore((s) => s.activeAccountId);
   const strategies = useAppStore((s) => s.strategies);
   const trades = useAppStore((s) => s.trades);
+  const subscription = useAppStore((s) => s.subscription);
   const addTrade = useAppStore((s) => s.addTrade);
   const updateTrade = useAppStore((s) => s.updateTrade);
   const userId = useAppStore((s) => s.userId);
@@ -77,8 +81,24 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
 
   const existing = tradeId ? trades.find((t) => t.id === tradeId) : null;
   const [draft, setDraft] = useState<Trade>(() => existing ?? emptyDraft(activeAccountId ?? accounts[0]?.id ?? ""));
-
   const metrics = useMemo(() => computeTradeMetrics(draft), [draft]);
+
+  // Only new trades count against the free-tier monthly cap — editing an
+  // existing one never should, even if the cap's already been hit. This
+  // check has to come after every hook call above (rules of hooks).
+  if (!existing && !canAddTrade(subscription, trades)) {
+    return (
+      <>
+        <ModalHeader title="Monthly trade limit reached" subtitle="" onClose={onClose} />
+        <div className="p-6">
+          <UpgradePrompt
+            title={`You've logged ${tradesThisMonth(trades)} of ${FREE_TIER_LIMITS.maxTradesPerMonth} free trades this month`}
+            description="Upgrade to Premium for unlimited trades, unlimited accounts, and everything else in the journal."
+          />
+        </div>
+      </>
+    );
+  }
 
   function patch<K extends keyof Trade>(key: K, value: Trade[K]) {
     setDraft((d) => ({ ...d, [key]: value }));

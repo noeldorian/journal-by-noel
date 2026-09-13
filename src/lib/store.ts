@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import {
   deleteAccountRow, deleteStrategyRow, deleteTradeRow, deleteTradeRows,
-  fetchAppDatabase, insertAccount, insertCheckIn, insertNotification, insertStrategy,
+  fetchAppDatabase, fetchSubscription, insertAccount, insertCheckIn, insertNotification, insertStrategy,
   insertTag, insertTrade, insertTrades, markAllNotificationsReadRow, markNotificationReadRow,
   saveProfile, saveSettings, setActiveAccountId, updateAccountRow, updateCheckInRow,
   updateStrategyRow, updateTradeRow,
@@ -61,6 +61,8 @@ interface AppState extends AppDatabase {
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   addNotification: (n: NotificationItem) => void;
+
+  refreshSubscription: () => Promise<void>;
 }
 
 const emptyDb = (): AppDatabase => ({
@@ -85,6 +87,7 @@ const emptyDb = (): AppDatabase => ({
   tags: [],
   checkIns: [],
   notifications: [],
+  subscription: { status: "free", cancelAtPeriodEnd: false },
 });
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -233,5 +236,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ notifications: [n, ...get().notifications] });
     const userId = get().userId;
     if (userId) insertNotification(userId, n).catch(logFailure("addNotification"));
+  },
+
+  refreshSubscription: async () => {
+    const userId = get().userId;
+    if (!userId) return;
+    const subscription = await fetchSubscription(userId);
+    set({ subscription });
   },
 }));
