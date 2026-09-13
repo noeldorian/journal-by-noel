@@ -14,7 +14,7 @@ import { computeTradeMetrics } from "@/lib/calculations";
 import { INSTRUMENT_LIST } from "@/lib/instruments";
 import { canAddTrade, tradesThisMonth } from "@/lib/premium";
 import { FREE_TIER_LIMITS } from "@/lib/types";
-import { formatCurrency, formatDuration, formatR, pnlColorClass, todayLocalDateStr, uid } from "@/lib/utils";
+import { formatCurrency, formatDuration, pnlColorClass, todayLocalDateStr, uid } from "@/lib/utils";
 import type { Direction, InstrumentSymbol, PsychTag, Session, Trade, TradeScreenshot } from "@/lib/types";
 
 const PSYCH_TAGS: PsychTag[] = ["FOMO", "Revenge", "Hesitation", "Greed", "Fear", "Overconfidence", "Impatience", "Boredom"];
@@ -37,10 +37,8 @@ function emptyDraft(accountId: string): Trade {
     instrument: "NQ",
     direction: "Long",
     session: "New York",
-    entryPrice: 0,
-    exitPrice: 0,
-    stopLoss: 0,
-    takeProfit: 0,
+    grossPnl: 0,
+    netPnl: 0,
     contracts: 1,
     fees: 0,
     slippage: 0,
@@ -82,6 +80,10 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
   const existing = tradeId ? trades.find((t) => t.id === tradeId) : null;
   const [draft, setDraft] = useState<Trade>(() => existing ?? emptyDraft(activeAccountId ?? accounts[0]?.id ?? ""));
   const metrics = useMemo(() => computeTradeMetrics(draft), [draft]);
+  // Net P&L mirrors Gross P&L until the trader edits Net directly — most
+  // trades don't need the two to differ, but nothing stops them from typing
+  // a different Net (e.g. to account for fees) once they touch that field.
+  const [netTouched, setNetTouched] = useState(() => !!existing && existing.netPnl !== existing.grossPnl);
 
   // Only new trades count against the free-tier monthly cap — editing an
   // existing one never should, even if the cap's already been hit. This
@@ -228,45 +230,42 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
           </section>
 
           <section>
-            <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-text-tertiary">Execution</h3>
-            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-              <div>
-                <Label>Entry price</Label>
-                <Input type="number" step="0.01" required value={draft.entryPrice || ""} onChange={(e) => patch("entryPrice", Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>Exit price</Label>
-                <Input type="number" step="0.01" required value={draft.exitPrice || ""} onChange={(e) => patch("exitPrice", Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>Stop loss</Label>
-                <Input type="number" step="0.01" required value={draft.stopLoss || ""} onChange={(e) => patch("stopLoss", Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>Take profit</Label>
-                <Input type="number" step="0.01" value={draft.takeProfit || ""} onChange={(e) => patch("takeProfit", Number(e.target.value))} />
-              </div>
+            <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-text-tertiary">P&L</h3>
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
               <div>
                 <Label>Contracts</Label>
                 <Input type="number" min="1" required value={draft.contracts || ""} onChange={(e) => patch("contracts", Number(e.target.value))} />
               </div>
               <div>
-                <Label>Fees ($)</Label>
-                <Input type="number" step="0.01" value={draft.fees || ""} onChange={(e) => patch("fees", Number(e.target.value))} />
+                <Label>Gross P&L ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={draft.grossPnl ?? ""}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setDraft((d) => ({ ...d, grossPnl: value, netPnl: netTouched ? d.netPnl : value }));
+                  }}
+                  placeholder="e.g. 450 or -220"
+                />
               </div>
               <div>
-                <Label>Slippage ($)</Label>
-                <Input type="number" step="0.01" value={draft.slippage || ""} onChange={(e) => patch("slippage", Number(e.target.value))} />
+                <Label>Net P&L ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={draft.netPnl ?? ""}
+                  onChange={(e) => { setNetTouched(true); patch("netPnl", Number(e.target.value)); }}
+                  placeholder="After fees/commissions"
+                />
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 rounded-md border border-border bg-bg-elevated p-3.5 sm:grid-cols-4">
               <Stat label="Gross P&L" value={formatCurrency(metrics.grossPnl)} className={pnlColorClass(metrics.grossPnl)} />
               <Stat label="Net P&L" value={formatCurrency(metrics.netPnl)} className={pnlColorClass(metrics.netPnl)} />
-              <Stat label="R Multiple" value={formatR(metrics.rMultiple)} className={pnlColorClass(metrics.rMultiple)} />
-              <Stat label="Risk %" value={`${metrics.riskPercent.toFixed(2)}%`} />
-              <Stat label="Risk amount" value={formatCurrency(metrics.riskAmount, { showSign: false })} />
-              <Stat label="Position size" value={formatCurrency(metrics.positionSizeUsd, { showSign: false })} />
               <Stat label="Holding time" value={formatDuration(metrics.holdingMinutes)} />
               <Stat label="Result" value={metrics.result} className={pnlColorClass(metrics.netPnl)} />
             </div>

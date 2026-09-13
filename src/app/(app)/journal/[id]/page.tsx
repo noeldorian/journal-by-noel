@@ -79,7 +79,9 @@ export default function TradeDetailPage() {
         <div className="flex items-center gap-3">
           <h1 className="text-[22px] font-semibold text-text-primary">{trade.instrument}</h1>
           <Badge tone={trade.direction === "Long" ? "pos" : "neg"}>{trade.direction}</Badge>
-          <span className={`text-[20px] font-semibold tabular-nums-all ${pnlColorClass(metrics.rMultiple)}`}>{formatR(metrics.rMultiple)}</span>
+          {trade.stopLoss !== undefined && (
+            <span className={`text-[20px] font-semibold tabular-nums-all ${pnlColorClass(metrics.rMultiple)}`}>{formatR(metrics.rMultiple)}</span>
+          )}
           <span className={`text-[20px] font-semibold tabular-nums-all ${pnlColorClass(metrics.netPnl)}`}>{formatCurrency(metrics.netPnl)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -126,17 +128,19 @@ export default function TradeDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Execution</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <Field label="Entry" value={trade.entryPrice} />
-                <Field label="Stop Loss" value={trade.stopLoss} />
-                <Field label="Take Profit" value={trade.takeProfit} />
-                <Field label="Exit" value={trade.exitPrice} />
-              </div>
-            </CardContent>
-          </Card>
+          {trade.entryPrice !== undefined && (
+            <Card>
+              <CardHeader><CardTitle>Execution</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <Field label="Entry" value={trade.entryPrice} />
+                  <Field label="Stop Loss" value={trade.stopLoss ?? "—"} />
+                  <Field label="Take Profit" value={trade.takeProfit ?? "—"} />
+                  <Field label="Exit" value={trade.exitPrice ?? "—"} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader><CardTitle>Journal Notes</CardTitle></CardHeader>
@@ -159,9 +163,13 @@ export default function TradeDetailPage() {
             <CardContent className="grid grid-cols-2 gap-4">
               <Field label="Gross P&L" value={formatCurrency(metrics.grossPnl)} className={pnlColorClass(metrics.grossPnl)} />
               <Field label="Net P&L" value={formatCurrency(metrics.netPnl)} className={pnlColorClass(metrics.netPnl)} />
-              <Field label="Risk" value={formatCurrency(metrics.riskAmount, { showSign: false })} />
-              <Field label="Risk %" value={`${metrics.riskPercent.toFixed(2)}%`} />
-              <Field label="Position Size" value={formatCurrency(metrics.positionSizeUsd, { showSign: false })} />
+              {trade.entryPrice !== undefined && (
+                <>
+                  <Field label="Risk" value={formatCurrency(metrics.riskAmount, { showSign: false })} />
+                  <Field label="Risk %" value={`${metrics.riskPercent.toFixed(2)}%`} />
+                  <Field label="Position Size" value={formatCurrency(metrics.positionSizeUsd, { showSign: false })} />
+                </>
+              )}
               <Field label="Holding Time" value={formatDuration(metrics.holdingMinutes)} />
               <Field label="Contracts" value={trade.contracts} />
               <Field label="Fees + Slippage" value={formatCurrency(trade.fees + trade.slippage, { showSign: false })} />

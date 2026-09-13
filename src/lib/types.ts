@@ -94,10 +94,18 @@ export interface Trade {
   instrument: InstrumentSymbol;
   direction: Direction;
   session: Session;
-  entryPrice: number;
-  exitPrice: number;
-  stopLoss: number;
-  takeProfit: number;
+  // Optional: only present on trades imported from a broker CSV, or older
+  // trades logged before the Add Trade form switched to plain P&L entry.
+  // The journal no longer asks for these directly.
+  entryPrice?: number;
+  exitPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  // Manually entered P&L — how every trade is logged today. When these are
+  // set, computeTradeMetrics() uses them directly instead of deriving P&L
+  // from entry/exit prices.
+  grossPnl?: number;
+  netPnl?: number;
   contracts: number;
   fees: number;
   slippage: number;

@@ -135,12 +135,10 @@ export function TradeTable({
               <th className="px-3 py-2.5 text-left"><SortHeader label="Date" k="date" sortKey={sortKey} onSort={toggleSort} /></th>
               <th className="px-3 py-2.5 text-left"><SortHeader label="Instrument" k="instrument" sortKey={sortKey} onSort={toggleSort} /></th>
               <th className="px-3 py-2.5 text-left">Direction</th>
-              <th className="px-3 py-2.5 text-right">Entry</th>
-              <th className="px-3 py-2.5 text-right">Stop</th>
-              <th className="px-3 py-2.5 text-right">Exit</th>
               {visibleCols.has("contracts") && <th className="px-3 py-2.5 text-right">Contracts</th>}
+              <th className="px-3 py-2.5 text-right">Gross P&L</th>
               {visibleCols.has("risk") && <th className="px-3 py-2.5 text-right"><SortHeader label="Risk" k="risk" sortKey={sortKey} onSort={toggleSort} /></th>}
-              <th className="px-3 py-2.5 text-right"><SortHeader label="P&L" k="pnl" sortKey={sortKey} onSort={toggleSort} /></th>
+              <th className="px-3 py-2.5 text-right"><SortHeader label="Net P&L" k="pnl" sortKey={sortKey} onSort={toggleSort} /></th>
               <th className="px-3 py-2.5 text-right"><SortHeader label="R" k="r" sortKey={sortKey} onSort={toggleSort} /></th>
               {visibleCols.has("setup") && <th className="px-3 py-2.5 text-left">Setup</th>}
               {visibleCols.has("session") && <th className="px-3 py-2.5 text-left">Session</th>}
@@ -163,13 +161,11 @@ export function TradeTable({
                 </td>
                 <td className="px-3 py-2.5 font-medium text-text-primary">{trade.instrument}</td>
                 <td className="px-3 py-2.5"><Badge tone={trade.direction === "Long" ? "pos" : "neg"}>{trade.direction}</Badge></td>
-                <td className="px-3 py-2.5 text-right tabular-nums-all text-text-secondary">{trade.entryPrice}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums-all text-text-secondary">{trade.stopLoss}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums-all text-text-secondary">{trade.exitPrice}</td>
                 {visibleCols.has("contracts") && <td className="px-3 py-2.5 text-right tabular-nums-all text-text-secondary">{trade.contracts}</td>}
-                {visibleCols.has("risk") && <td className="px-3 py-2.5 text-right tabular-nums-all text-text-secondary">{formatCurrency(metrics.riskAmount, { showSign: false })}</td>}
+                <td className={cn("px-3 py-2.5 text-right tabular-nums-all", pnlColorClass(metrics.grossPnl))}>{formatCurrency(metrics.grossPnl)}</td>
+                {visibleCols.has("risk") && <td className="px-3 py-2.5 text-right tabular-nums-all text-text-secondary">{trade.stopLoss !== undefined ? formatCurrency(metrics.riskAmount, { showSign: false }) : "—"}</td>}
                 <td className={cn("px-3 py-2.5 text-right font-semibold tabular-nums-all", pnlColorClass(metrics.netPnl))}>{formatCurrency(metrics.netPnl)}</td>
-                <td className={cn("px-3 py-2.5 text-right tabular-nums-all", pnlColorClass(metrics.rMultiple))}>{formatR(metrics.rMultiple)}</td>
+                <td className={cn("px-3 py-2.5 text-right tabular-nums-all", pnlColorClass(metrics.rMultiple))}>{trade.stopLoss !== undefined ? formatR(metrics.rMultiple) : "—"}</td>
                 {visibleCols.has("setup") && <td className="px-3 py-2.5 text-text-secondary max-w-[140px] truncate">{trade.setup ?? "—"}</td>}
                 {visibleCols.has("session") && <td className="px-3 py-2.5 text-text-secondary">{trade.session}</td>}
                 <td className="px-3 py-2.5">

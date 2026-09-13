@@ -14,18 +14,46 @@ export function holdingMinutes(entryTime: string, exitTime: string) {
 }
 
 export function computeTradeMetrics(trade: Trade): DerivedTradeMetrics {
-  const spec = INSTRUMENTS[trade.instrument];
-  const dir = trade.direction === "Long" ? 1 : -1;
+  // Trades are logged with a plain gross/net P&L today. Older trades (or
+  // ones imported from a broker CSV) still carry entry/exit/stop prices —
+  // those keep working exactly as before, computed from price action, with
+  // risk/R-multiple/position sizing derived alongside them. A manually
+  // entered P&L has no price data to derive risk metrics from, so those
+  // come back as 0 rather than something misleading.
+  const hasManualPnl = trade.grossPnl !== undefined || trade.netPnl !== undefined;
+  const hasPrices = trade.entryPrice !== undefined && trade.exitPrice !== undefined;
 
-  const grossPnl = dir * (trade.exitPrice - trade.entryPrice) * spec.pointValue * trade.contracts;
-  const netPnl = grossPnl - trade.fees - trade.slippage;
+  let grossPnl: number;
+  let netPnl: number;
 
-  const riskPoints = Math.abs(trade.entryPrice - trade.stopLoss);
-  const riskAmount = riskPoints * spec.pointValue * trade.contracts;
-  const rMultiple = riskAmount > 0 ? netPnl / riskAmount : 0;
+  if (hasManualPnl) {
+    grossPnl = trade.grossPnl ?? (trade.netPnl! + trade.fees + trade.slippage);
+    netPnl = trade.netPnl ?? (grossPnl - trade.fees - trade.slippage);
+  } else if (hasPrices) {
+    const spec = INSTRUMENTS[trade.instrument];
+    const dir = trade.direction === "Long" ? 1 : -1;
+    grossPnl = dir * (trade.exitPrice! - trade.entryPrice!) * spec.pointValue * trade.contracts;
+    netPnl = grossPnl - trade.fees - trade.slippage;
+  } else {
+    grossPnl = 0;
+    netPnl = 0;
+  }
 
-  const positionSizeUsd = trade.entryPrice * spec.pointValue * trade.contracts;
-  const riskPercent = positionSizeUsd > 0 ? (riskAmount / positionSizeUsd) * 100 : 0;
+  let riskAmount = 0;
+  let riskPercent = 0;
+  let rMultiple = 0;
+  let positionSizeUsd = 0;
+
+  if (hasPrices) {
+    const spec = INSTRUMENTS[trade.instrument];
+    positionSizeUsd = trade.entryPrice! * spec.pointValue * trade.contracts;
+    if (trade.stopLoss !== undefined) {
+      const riskPoints = Math.abs(trade.entryPrice! - trade.stopLoss);
+      riskAmount = riskPoints * spec.pointValue * trade.contracts;
+      rMultiple = riskAmount > 0 ? netPnl / riskAmount : 0;
+    }
+    riskPercent = positionSizeUsd > 0 ? (riskAmount / positionSizeUsd) * 100 : 0;
+  }
 
   let result: TradeResult = "Breakeven";
   if (netPnl > 0.01) result = "Win";

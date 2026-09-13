@@ -14,6 +14,7 @@ import { useAppStore } from "@/lib/store";
 import { useUiStore } from "@/lib/ui-store";
 import { useToast } from "@/components/ui/toast";
 import { tradesToCsv, downloadCsv } from "@/lib/csv";
+import { computeTradeMetrics } from "@/lib/calculations";
 import { todayLocalDateStr } from "@/lib/utils";
 import { INSTRUMENT_LIST } from "@/lib/instruments";
 import type { Direction, Session } from "@/lib/types";
@@ -66,11 +67,7 @@ function JournalContent() {
 
   const resultFiltered = useMemo(() => {
     if (resultFilter === "all") return filtered;
-    return filtered.filter((t) => {
-      const dir = t.direction === "Long" ? 1 : -1;
-      const pnl = dir * (t.exitPrice - t.entryPrice);
-      return resultFilter === "Win" ? pnl > 0 : pnl < 0;
-    });
+    return filtered.filter((t) => computeTradeMetrics(t).result === resultFilter);
   }, [filtered, resultFilter]);
 
   function handleExport() {

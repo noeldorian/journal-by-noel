@@ -141,8 +141,9 @@ export function tradesToCsv(trades: Trade[]): string {
   for (const t of trades) {
     const m = computeTradeMetrics(t);
     const cells = [
-      t.date, t.entryTime, t.exitTime, t.instrument, t.direction, t.entryPrice, t.stopLoss,
-      t.takeProfit, t.exitPrice, t.contracts, t.fees, t.slippage,
+      t.date, t.entryTime, t.exitTime, t.instrument, t.direction,
+      t.entryPrice ?? "", t.stopLoss ?? "", t.takeProfit ?? "", t.exitPrice ?? "",
+      t.contracts, t.fees, t.slippage,
       m.grossPnl.toFixed(2), m.netPnl.toFixed(2), m.rMultiple.toFixed(2),
       t.setup ?? "", t.session, m.result, `"${t.tags.join("; ")}"`,
     ];

@@ -102,10 +102,16 @@ create table if not exists public.trades (
   instrument text not null,
   direction text not null,
   session text not null,
-  entry_price numeric not null,
-  exit_price numeric not null,
-  stop_loss numeric not null,
-  take_profit numeric not null default 0,
+  -- Nullable: the journal no longer asks for these directly (see gross_pnl /
+  -- net_pnl below) — they're only populated for CSV-imported trades or ones
+  -- logged before that change.
+  entry_price numeric,
+  exit_price numeric,
+  stop_loss numeric,
+  take_profit numeric,
+  -- Manually entered P&L — how every trade is logged today.
+  gross_pnl numeric,
+  net_pnl numeric,
   contracts numeric not null,
   fees numeric not null default 0,
   slippage numeric not null default 0,
@@ -121,6 +127,17 @@ create table if not exists public.trades (
 );
 
 create index if not exists trades_user_id_date_idx on public.trades (user_id, date);
+
+-- Same story as the accent_color default above: `create table if not
+-- exists` only shapes a table created fresh. On a database that already has
+-- trades from before P&L became manually entered, these columns were still
+-- `not null` and gross_pnl/net_pnl didn't exist yet. Safe to re-run.
+alter table public.trades alter column entry_price drop not null;
+alter table public.trades alter column exit_price drop not null;
+alter table public.trades alter column stop_loss drop not null;
+alter table public.trades alter column take_profit drop not null;
+alter table public.trades add column if not exists gross_pnl numeric;
+alter table public.trades add column if not exists net_pnl numeric;
 create index if not exists trades_account_id_idx on public.trades (account_id);
 
 -- ============================================================================
