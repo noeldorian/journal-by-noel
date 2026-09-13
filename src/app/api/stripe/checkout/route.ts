@@ -43,6 +43,11 @@ export async function POST(request: Request) {
       success_url: `${origin}/settings?section=billing&checkout=success`,
       cancel_url: `${origin}/settings?section=billing&checkout=cancelled`,
       subscription_data: { metadata: { supabase_user_id: user.id } },
+      // Managed Payments (Stripe's merchant-of-record mode) is on by default
+      // for new accounts and requires a tax code on every product, which we
+      // have no use for here — this is a plain subscription, not a
+      // marketplace sale. Opting out avoids that requirement entirely.
+      managed_payments: { enabled: false },
     });
 
     return NextResponse.json({ url: session.url });
