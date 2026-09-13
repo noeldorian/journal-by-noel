@@ -134,7 +134,7 @@ export function validateAndBuildTrades(
 export function tradesToCsv(trades: Trade[]): string {
   const headers = [
     "Date", "Entry Time", "Exit Time", "Instrument", "Direction", "Entry", "Stop Loss",
-    "Take Profit", "Exit", "Contracts", "Fees", "Slippage", "Gross P&L", "Net P&L", "R Multiple",
+    "Take Profit", "Exit", "Contracts", "Commissions", "Fees", "P&L", "Net P&L", "R Multiple",
     "Setup", "Session", "Result", "Tags",
   ];
   const lines = [headers.join(",")];

@@ -161,7 +161,7 @@ export default function TradeDetailPage() {
           <Card>
             <CardHeader><CardTitle>Performance Metrics</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-              <Field label="Gross P&L" value={formatCurrency(metrics.grossPnl)} className={pnlColorClass(metrics.grossPnl)} />
+              <Field label="P&L" value={formatCurrency(metrics.grossPnl)} className={pnlColorClass(metrics.grossPnl)} />
               <Field label="Net P&L" value={formatCurrency(metrics.netPnl)} className={pnlColorClass(metrics.netPnl)} />
               {trade.entryPrice !== undefined && (
                 <>
@@ -172,7 +172,7 @@ export default function TradeDetailPage() {
               )}
               <Field label="Holding Time" value={formatDuration(metrics.holdingMinutes)} />
               <Field label="Contracts" value={trade.contracts} />
-              <Field label="Fees + Slippage" value={formatCurrency(trade.fees + trade.slippage, { showSign: false })} />
+              <Field label="Commissions + Fees" value={formatCurrency(trade.fees + trade.slippage, { showSign: false })} />
             </CardContent>
           </Card>
 

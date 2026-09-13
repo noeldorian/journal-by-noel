@@ -18,12 +18,12 @@ import { formatCurrency, formatDuration, pnlColorClass, todayLocalDateStr, uid }
 import type { Direction, InstrumentSymbol, PsychTag, Session, Trade, TradeScreenshot } from "@/lib/types";
 
 const PSYCH_TAGS: PsychTag[] = ["FOMO", "Revenge", "Hesitation", "Greed", "Fear", "Overconfidence", "Impatience", "Boredom"];
-const PSYCH_FIELDS: { key: keyof NonNullable<Trade["psychology"]>; label: string }[] = [
-  { key: "confidence", label: "Confidence" },
-  { key: "patience", label: "Patience" },
-  { key: "discipline", label: "Discipline" },
-  { key: "focus", label: "Focus" },
-  { key: "emotionalControl", label: "Emotional control" },
+const PSYCH_FIELDS: { key: keyof NonNullable<Trade["psychology"]>; label: string; emoji: string }[] = [
+  { key: "confidence", label: "Confidence", emoji: "💪" },
+  { key: "patience", label: "Patience", emoji: "🧘" },
+  { key: "discipline", label: "Discipline", emoji: "🎯" },
+  { key: "focus", label: "Focus", emoji: "🧠" },
+  { key: "emotionalControl", label: "Emotional control", emoji: "😌" },
 ];
 
 function emptyDraft(accountId: string): Trade {
@@ -37,8 +37,6 @@ function emptyDraft(accountId: string): Trade {
     instrument: "NQ",
     direction: "Long",
     session: "New York",
-    grossPnl: 0,
-    netPnl: 0,
     contracts: 1,
     fees: 0,
     slippage: 0,
@@ -80,10 +78,6 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
   const existing = tradeId ? trades.find((t) => t.id === tradeId) : null;
   const [draft, setDraft] = useState<Trade>(() => existing ?? emptyDraft(activeAccountId ?? accounts[0]?.id ?? ""));
   const metrics = useMemo(() => computeTradeMetrics(draft), [draft]);
-  // Net P&L mirrors Gross P&L until the trader edits Net directly — most
-  // trades don't need the two to differ, but nothing stops them from typing
-  // a different Net (e.g. to account for fees) once they touch that field.
-  const [netTouched, setNetTouched] = useState(() => !!existing && existing.netPnl !== existing.grossPnl);
 
   // Only new trades count against the free-tier monthly cap — editing an
   // existing one never should, even if the cap's already been hit. This
@@ -231,40 +225,36 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
 
           <section>
             <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-text-tertiary">P&L</h3>
-            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
               <div>
                 <Label>Contracts</Label>
                 <Input type="number" min="1" required value={draft.contracts || ""} onChange={(e) => patch("contracts", Number(e.target.value))} />
               </div>
               <div>
-                <Label>Gross P&L ($)</Label>
+                <Label>P&L ($)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   required
-                  value={draft.grossPnl ?? ""}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    setDraft((d) => ({ ...d, grossPnl: value, netPnl: netTouched ? d.netPnl : value }));
-                  }}
+                  value={draft.grossPnl || ""}
+                  onChange={(e) => patch("grossPnl", Number(e.target.value))}
                   placeholder="e.g. 450 or -220"
                 />
               </div>
+              {/* Reuses the existing fees/slippage columns rather than adding
+                  new ones — "slippage" is just displayed as "Fees" here. */}
               <div>
-                <Label>Net P&L ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={draft.netPnl ?? ""}
-                  onChange={(e) => { setNetTouched(true); patch("netPnl", Number(e.target.value)); }}
-                  placeholder="After fees/commissions"
-                />
+                <Label>Commissions ($)</Label>
+                <Input type="number" step="0.01" value={draft.fees || ""} onChange={(e) => patch("fees", Number(e.target.value))} placeholder="0.00" />
+              </div>
+              <div>
+                <Label>Fees ($)</Label>
+                <Input type="number" step="0.01" value={draft.slippage || ""} onChange={(e) => patch("slippage", Number(e.target.value))} placeholder="0.00" />
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 rounded-md border border-border bg-bg-elevated p-3.5 sm:grid-cols-4">
-              <Stat label="Gross P&L" value={formatCurrency(metrics.grossPnl)} className={pnlColorClass(metrics.grossPnl)} />
+              <Stat label="P&L" value={formatCurrency(metrics.grossPnl)} className={pnlColorClass(metrics.grossPnl)} />
               <Stat label="Net P&L" value={formatCurrency(metrics.netPnl)} className={pnlColorClass(metrics.netPnl)} />
               <Stat label="Holding time" value={formatDuration(metrics.holdingMinutes)} />
               <Stat label="Result" value={metrics.result} className={pnlColorClass(metrics.netPnl)} />
@@ -317,23 +307,40 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
 
           <section>
             <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-text-tertiary">Psychology Ratings</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {PSYCH_FIELDS.map((f) => (
-                <div key={f.key}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <Label className="mb-0">{f.label}</Label>
-                    <span className="text-[12px] font-medium text-text-secondary">{draft.psychology?.[f.key] ?? 5}/10</span>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {PSYCH_FIELDS.map((f) => {
+                const value = draft.psychology?.[f.key] ?? 5;
+                const pct = ((value - 1) / 9) * 100;
+                return (
+                  <div key={f.key}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label className="mb-0">{f.label}</Label>
+                      <span className="text-[12px] font-medium text-text-secondary">{value}/10</span>
+                    </div>
+                    <div className="relative flex h-6 items-center">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+                        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        value={value}
+                        onChange={(e) => patchPsych(f.key, Number(e.target.value))}
+                        className="absolute inset-0 w-full cursor-pointer opacity-0"
+                      />
+                      {/* Decorative emoji "thumb" riding on top of the invisible
+                          native slider, which still handles drag/keyboard input. */}
+                      <span
+                        className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-base leading-none"
+                        style={{ left: `${pct}%` }}
+                      >
+                        {f.emoji}
+                      </span>
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={10}
-                    value={draft.psychology?.[f.key] ?? 5}
-                    onChange={(e) => patchPsych(f.key, Number(e.target.value))}
-                    className="w-full accent-[var(--accent)]"
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-4">
               <Label>Psychology tags</Label>

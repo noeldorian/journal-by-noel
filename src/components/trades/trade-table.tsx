@@ -136,7 +136,7 @@ export function TradeTable({
               <th className="px-3 py-2.5 text-left"><SortHeader label="Instrument" k="instrument" sortKey={sortKey} onSort={toggleSort} /></th>
               <th className="px-3 py-2.5 text-left">Direction</th>
               {visibleCols.has("contracts") && <th className="px-3 py-2.5 text-right">Contracts</th>}
-              <th className="px-3 py-2.5 text-right">Gross P&L</th>
+              <th className="px-3 py-2.5 text-right">P&L</th>
               {visibleCols.has("risk") && <th className="px-3 py-2.5 text-right"><SortHeader label="Risk" k="risk" sortKey={sortKey} onSort={toggleSort} /></th>}
               <th className="px-3 py-2.5 text-right"><SortHeader label="Net P&L" k="pnl" sortKey={sortKey} onSort={toggleSort} /></th>
               <th className="px-3 py-2.5 text-right"><SortHeader label="R" k="r" sortKey={sortKey} onSort={toggleSort} /></th>
