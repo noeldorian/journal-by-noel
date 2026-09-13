@@ -165,7 +165,22 @@ export interface DailyCheckIn {
   createdAt: string;
 }
 
-export type AccentColor = "green" | "blue" | "white";
+export type PayoutType = "Prop Payout" | "Withdrawal" | "Other";
+export type PayoutStatus = "Paid" | "Pending" | "Processing";
+
+export interface Payout {
+  id: string;
+  accountId?: string;
+  date: string; // yyyy-MM-dd
+  amount: number;
+  type: PayoutType;
+  status: PayoutStatus;
+  method?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export type AccentColor = "green" | "blue" | "white" | "purple";
 
 export interface UserSettings {
   timezone: string;
@@ -236,6 +251,7 @@ export interface AppDatabase {
   checkIns: DailyCheckIn[];
   notifications: NotificationItem[];
   subscription: Subscription;
+  payouts: Payout[];
 }
 
 export type DateRangeKey = "today" | "week" | "month" | "year" | "custom";

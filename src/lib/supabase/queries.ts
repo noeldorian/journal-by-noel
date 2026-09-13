@@ -4,16 +4,16 @@
 // else's rows even if a bug passed the wrong id.
 import { supabase } from "./client";
 import {
-  accountToRow, checkInToRow, profileToRow, rowToAccount, rowToCheckIn,
-  rowToNotification, rowToProfile, rowToSettings, rowToStrategy, rowToSubscription, rowToTrade,
+  accountToRow, checkInToRow, payoutToRow, profileToRow, rowToAccount, rowToCheckIn,
+  rowToNotification, rowToPayout, rowToProfile, rowToSettings, rowToStrategy, rowToSubscription, rowToTrade,
   settingsToRow, strategyToRow, tradeToRow,
 } from "./mappers";
 import type {
-  Account, AppDatabase, DailyCheckIn, NotificationItem, Strategy, Trade, UserProfile, UserSettings,
+  Account, AppDatabase, DailyCheckIn, NotificationItem, Payout, Strategy, Trade, UserProfile, UserSettings,
 } from "@/lib/types";
 
 export async function fetchAppDatabase(userId: string, email: string): Promise<AppDatabase> {
-  const [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes] =
+  const [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes, payoutsRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
@@ -24,9 +24,10 @@ export async function fetchAppDatabase(userId: string, email: string): Promise<A
       supabase.from("check_ins").select("*").eq("user_id", userId).order("date"),
       supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle(),
+      supabase.from("payouts").select("*").eq("user_id", userId).order("date"),
     ]);
 
-  for (const res of [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes]) {
+  for (const res of [profileRes, settingsRes, accountsRes, tradesRes, strategiesRes, tagsRes, checkInsRes, notificationsRes, subscriptionRes, payoutsRes]) {
     if (res.error) throw res.error;
   }
 
@@ -44,6 +45,7 @@ export async function fetchAppDatabase(userId: string, email: string): Promise<A
     checkIns: (checkInsRes.data ?? []).map(rowToCheckIn),
     notifications: (notificationsRes.data ?? []).map(rowToNotification),
     subscription: rowToSubscription(subscriptionRes.data),
+    payouts: (payoutsRes.data ?? []).map(rowToPayout),
   };
 }
 
@@ -159,6 +161,21 @@ export async function insertNotification(userId: string, n: NotificationItem) {
   const { error } = await supabase.from("notifications").insert({
     id: n.id, user_id: userId, title: n.title, body: n.body, type: n.type, read: n.read, created_at: n.createdAt,
   });
+  if (error) throw error;
+}
+
+export async function insertPayout(userId: string, payout: Payout) {
+  const { error } = await supabase.from("payouts").insert(payoutToRow(payout, userId));
+  if (error) throw error;
+}
+
+export async function updatePayoutRow(userId: string, id: string, payout: Payout) {
+  const { error } = await supabase.from("payouts").update(payoutToRow(payout, userId)).eq("id", id).eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function deletePayoutRow(userId: string, id: string) {
+  const { error } = await supabase.from("payouts").delete().eq("id", id).eq("user_id", userId);
   if (error) throw error;
 }
 

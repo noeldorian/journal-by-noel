@@ -22,12 +22,19 @@ export function Sidebar() {
       )}
     >
       <div className={cn("flex items-center h-14 px-4 border-b border-border", collapsed && "justify-center px-0")}>
-        {collapsed ? <Logomark className="h-7 w-7" /> : <Logomark className="h-7 w-7" />}
-        {!collapsed && <span className="ml-2.5 text-[14px] font-semibold tracking-tight">Journal by Noel</span>}
+        <div className="logo-float-wrap relative">
+          <div className="logo-ring" aria-hidden />
+          <Logomark className="relative h-7 w-7" />
+        </div>
+        {!collapsed && (
+          <span className="logo-gradient-text ml-2.5 text-[14px] font-semibold tracking-tight">
+            Journal by Noel
+          </span>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item, i) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
@@ -36,14 +43,22 @@ export function Sidebar() {
               href={item.href}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "group flex items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-colors duration-150",
+                "nav-icon-link group flex items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-colors duration-150",
                 collapsed && "justify-center px-0",
                 active
                   ? "bg-accent-soft text-accent"
                   : "text-text-secondary hover:bg-surface-2 hover:text-text-primary"
               )}
             >
-              <Icon size={17} strokeWidth={2} className="shrink-0" />
+              <Icon
+                size={17}
+                strokeWidth={2}
+                className={cn(
+                  "shrink-0",
+                  active ? "nav-icon-active" : i % 2 === 0 ? "nav-icon-drift-a" : "nav-icon-drift-b"
+                )}
+                style={{ animationDelay: `${(i % 5) * 0.35}s` }}
+              />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );

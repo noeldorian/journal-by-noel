@@ -12,7 +12,7 @@ export function ThemeSync() {
   }, [theme]);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-accent", accent ?? "green");
+    document.documentElement.setAttribute("data-accent", accent ?? "purple");
   }, [accent]);
 
   return null;

@@ -1,16 +1,17 @@
 import { create } from "zustand";
 import {
-  deleteAccountRow, deleteStrategyRow, deleteTradeRow, deleteTradeRows,
-  fetchAppDatabase, fetchSubscription, insertAccount, insertCheckIn, insertNotification, insertStrategy,
+  deleteAccountRow, deletePayoutRow, deleteStrategyRow, deleteTradeRow, deleteTradeRows,
+  fetchAppDatabase, fetchSubscription, insertAccount, insertCheckIn, insertNotification, insertPayout, insertStrategy,
   insertTag, insertTrade, insertTrades, markAllNotificationsReadRow, markNotificationReadRow,
   saveProfile, saveSettings, setActiveAccountId, updateAccountRow, updateCheckInRow,
-  updateStrategyRow, updateTradeRow,
+  updatePayoutRow, updateStrategyRow, updateTradeRow,
 } from "./supabase/queries";
 import type {
   Account,
   AppDatabase,
   DailyCheckIn,
   NotificationItem,
+  Payout,
   Strategy,
   Trade,
   UserProfile,
@@ -62,6 +63,10 @@ interface AppState extends AppDatabase {
   markAllNotificationsRead: () => void;
   addNotification: (n: NotificationItem) => void;
 
+  addPayout: (payout: Payout) => void;
+  updatePayout: (id: string, partial: Partial<Payout>) => void;
+  deletePayout: (id: string) => void;
+
   refreshSubscription: () => Promise<void>;
 }
 
@@ -72,7 +77,7 @@ const emptyDb = (): AppDatabase => ({
     defaultRiskPct: 0.5,
     defaultSession: "New York",
     theme: "dark",
-    accentColor: "green",
+    accentColor: "purple",
     defaultTags: [],
     emailNotifications: true,
     pushNotifications: true,
@@ -88,6 +93,7 @@ const emptyDb = (): AppDatabase => ({
   checkIns: [],
   notifications: [],
   subscription: { status: "free", cancelAtPeriodEnd: false },
+  payouts: [],
 });
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -236,6 +242,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ notifications: [n, ...get().notifications] });
     const userId = get().userId;
     if (userId) insertNotification(userId, n).catch(logFailure("addNotification"));
+  },
+
+  addPayout: (payout) => {
+    set({ payouts: [...get().payouts, payout] });
+    const userId = get().userId;
+    if (userId) insertPayout(userId, payout).catch(logFailure("addPayout"));
+  },
+  updatePayout: (id, partial) => {
+    let merged: Payout | undefined;
+    set({
+      payouts: get().payouts.map((p) => {
+        if (p.id !== id) return p;
+        merged = { ...p, ...partial };
+        return merged;
+      }),
+    });
+    const userId = get().userId;
+    if (userId && merged) updatePayoutRow(userId, id, merged).catch(logFailure("updatePayout"));
+  },
+  deletePayout: (id) => {
+    set({ payouts: get().payouts.filter((p) => p.id !== id) });
+    const userId = get().userId;
+    if (userId) deletePayoutRow(userId, id).catch(logFailure("deletePayout"));
   },
 
   refreshSubscription: async () => {

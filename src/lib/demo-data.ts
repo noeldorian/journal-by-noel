@@ -9,6 +9,7 @@ import type {
   Direction,
   InstrumentSymbol,
   NotificationItem,
+  Payout,
   PsychTag,
   Session,
   Strategy,
@@ -454,7 +455,7 @@ export function generateDemoDatabase(): AppDatabase {
     defaultRiskPct: 0.5,
     defaultSession: "New York",
     theme: "dark",
-    accentColor: "green",
+    accentColor: "purple",
     defaultTags: DEFAULT_TAGS,
     emailNotifications: true,
     pushNotifications: true,
@@ -471,6 +472,12 @@ export function generateDemoDatabase(): AppDatabase {
     { id: uid("notif"), title: "Milestone reached", body: "Topstep 50K crossed +$3,000 in cumulative net P&L.", type: "milestone", read: true, createdAt: new Date(now.getTime() - 3600_000 * 120).toISOString() },
   ];
 
+  const payouts: Payout[] = [
+    { id: uid("payout"), accountId: accounts[0].id, date: toLocalDateStr(new Date(now.getTime() - 60 * 86400000)), amount: 1250, type: "Prop Payout", status: "Paid", method: "Wire", createdAt: new Date(now.getTime() - 60 * 86400000).toISOString() },
+    { id: uid("payout"), accountId: accounts[0].id, date: toLocalDateStr(new Date(now.getTime() - 32 * 86400000)), amount: 2100, type: "Prop Payout", status: "Paid", method: "ACH", createdAt: new Date(now.getTime() - 32 * 86400000).toISOString() },
+    { id: uid("payout"), accountId: accounts[0].id, date: toLocalDateStr(new Date(now.getTime() - 3 * 86400000)), amount: 900, type: "Prop Payout", status: "Pending", method: "Wire", createdAt: new Date(now.getTime() - 3 * 86400000).toISOString() },
+  ];
+
   return {
     user,
     settings,
@@ -482,6 +489,7 @@ export function generateDemoDatabase(): AppDatabase {
     checkIns,
     notifications,
     subscription: { status: "free", cancelAtPeriodEnd: false },
+    payouts,
   };
 }
 

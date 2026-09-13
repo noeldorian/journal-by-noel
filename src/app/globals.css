@@ -22,21 +22,40 @@
   --accent: #22e5a0;
   --accent-foreground: #06150f;
   --accent-soft: rgba(34, 229, 160, 0.14);
+  /* Companion hues for gradients/glow (logo ring, chart lines) — every
+     accent gets two, so those flourishes always have something to work
+     with regardless of which accent the user has picked. */
+  --accent-2: #22d3ee;
+  --accent-3: #f2b94d;
 
   --shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset, 0 12px 24px -16px rgba(0, 0, 0, 0.6);
   --shadow-modal: 0 24px 64px -24px rgba(0, 0, 0, 0.7);
+}
+
+/* Ultraviolet Session — the default accent. Violet does the talking; blue
+   and orange only ever show up in gradients, glow, and the logo. */
+:root[data-accent="purple"] {
+  --accent: #8b5cf6;
+  --accent-foreground: #ffffff;
+  --accent-soft: rgba(139, 92, 246, 0.16);
+  --accent-2: #38bdf8;
+  --accent-3: #fb923c;
 }
 
 :root[data-accent="blue"] {
   --accent: #3b9eff;
   --accent-foreground: #051425;
   --accent-soft: rgba(59, 158, 255, 0.14);
+  --accent-2: #8b5cf6;
+  --accent-3: #fb923c;
 }
 
 :root[data-accent="white"] {
   --accent: #f4f5f7;
   --accent-foreground: #0a0b0d;
   --accent-soft: rgba(244, 245, 247, 0.12);
+  --accent-2: #f4f5f7;
+  --accent-3: #f4f5f7;
 }
 
 :root[data-theme="light"] {
@@ -57,6 +76,8 @@
   --accent: #16181b;
   --accent-foreground: #ffffff;
   --accent-soft: rgba(22, 24, 27, 0.08);
+  --accent-2: #16181b;
+  --accent-3: #16181b;
 }
 
 :root[data-theme="light"] {
@@ -88,6 +109,8 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -112,6 +135,76 @@
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Sidebar motion — idle icon drift, hover spin, active-item pulse, and    */
+/* the animated logo lockup in the top-left corner.                        */
+/* ---------------------------------------------------------------------- */
+@keyframes nav-icon-drift-a {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-9deg); }
+}
+@keyframes nav-icon-drift-b {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(2px) rotate(9deg); }
+}
+@keyframes nav-icon-spin-pop {
+  0% { transform: rotate(0deg) scale(1); }
+  65% { transform: rotate(330deg) scale(1.22); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes nav-icon-active-pulse {
+  0%, 100% { transform: rotate(0deg); filter: drop-shadow(0 0 0 transparent); }
+  50% { transform: rotate(8deg); filter: drop-shadow(0 0 5px var(--accent)); }
+}
+
+.nav-icon-drift-a { animation: nav-icon-drift-a 3.4s ease-in-out infinite; }
+.nav-icon-drift-b { animation: nav-icon-drift-b 3.9s ease-in-out infinite; }
+.nav-icon-active { animation: nav-icon-active-pulse 2.2s ease-in-out infinite; }
+.nav-icon-link:hover .nav-icon-drift-a,
+.nav-icon-link:hover .nav-icon-drift-b,
+.nav-icon-link:hover .nav-icon-active {
+  animation: nav-icon-spin-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  33% { transform: translateY(-2px) translateX(0.5px); }
+  66% { transform: translateY(1px) translateX(-0.5px); }
+}
+@keyframes logo-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes logo-shimmer {
+  to { background-position: 200% center; }
+}
+
+.logo-float-wrap { animation: logo-float 5s ease-in-out infinite; }
+.logo-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  background: conic-gradient(from 0deg, var(--accent), var(--accent-2), var(--accent-3), var(--accent));
+  filter: blur(7px);
+  opacity: 0.6;
+  animation: logo-ring-spin 6s linear infinite;
+}
+.logo-gradient-text {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent), var(--accent-3), var(--accent-2));
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: logo-shimmer 7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-icon-drift-a, .nav-icon-drift-b, .nav-icon-active,
+  .logo-float-wrap, .logo-ring, .logo-gradient-text {
+    animation: none !important;
+  }
 }
 
 * {

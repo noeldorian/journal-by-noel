@@ -36,6 +36,7 @@ const SECTIONS = [
 type SectionKey = (typeof SECTIONS)[number]["key"];
 
 const ACCENTS: { value: AccentColor; label: string; color: string }[] = [
+  { value: "purple", label: "Ultraviolet", color: "#8b5cf6" },
   { value: "green", label: "Electric Green", color: "#22e5a0" },
   { value: "blue", label: "Electric Blue", color: "#3b9eff" },
   { value: "white", label: "White", color: "#f4f5f7" },

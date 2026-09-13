@@ -225,6 +225,14 @@ git commit -m "whatever you changed"
 git push
 ```
 
+**When a change adds a new database table** (like the Payouts feature did), the
+app's code will look for that table the moment it deploys — so the table has
+to exist in Supabase *before* you push, or the whole app will fail to load for
+every signed-in user (not just the new feature). Re-run [`supabase/schema.sql`](./supabase/schema.sql)
+in the Supabase SQL Editor (Part 1.2) any time you pull a change that touches
+it — it's written so re-running the entire file is always safe, even if most
+of it already exists.
+
 ## What's still worth knowing
 
 - **No automated tests** were part of this build — if you plan to keep extending this, consider adding some before it grows much further.

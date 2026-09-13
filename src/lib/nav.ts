@@ -6,6 +6,7 @@ import {
   ListChecks,
   Brain,
   Wallet,
+  PiggyBank,
   ShieldAlert,
   Settings,
   type LucideIcon,
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Playbook", href: "/playbook", icon: ListChecks },
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "Accounts", href: "/accounts", icon: Wallet },
+  { label: "Payouts", href: "/payouts", icon: PiggyBank },
   { label: "Risk", href: "/risk", icon: ShieldAlert },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

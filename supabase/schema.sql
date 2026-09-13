@@ -30,13 +30,19 @@ create table if not exists public.user_settings (
   default_risk_pct numeric not null default 0.5,
   default_session text not null default 'New York',
   theme text not null default 'dark',
-  accent_color text not null default 'green',
+  accent_color text not null default 'purple',
   email_notifications boolean not null default true,
   push_notifications boolean not null default true,
   daily_summary boolean not null default true,
   weekly_summary boolean not null default true,
   sidebar_collapsed boolean not null default false
 );
+
+-- `create table if not exists` above only sets this default for a table
+-- created fresh — on a database that already has user_settings from before
+-- this default changed, the column keeps its old default until told
+-- otherwise. This line is safe to re-run any time.
+alter table public.user_settings alter column accent_color set default 'purple';
 
 -- ============================================================================
 -- ACCOUNTS — a trading account (prop eval, funded, personal, demo)
@@ -180,6 +186,23 @@ create table if not exists public.subscriptions (
 );
 
 -- ============================================================================
+-- PAYOUTS — the financial journal: prop-firm payouts / withdrawals a user
+-- logs against their trading, tracked separately from trade P&L.
+-- ============================================================================
+create table if not exists public.payouts (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  account_id text,
+  date date not null,
+  amount numeric not null,
+  type text not null default 'Prop Payout',
+  status text not null default 'Paid',
+  method text,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================================
 -- ROW LEVEL SECURITY — every table is private to its owning user
 -- ============================================================================
 alter table public.profiles enable row level security;
@@ -191,6 +214,7 @@ alter table public.check_ins enable row level security;
 alter table public.notifications enable row level security;
 alter table public.custom_tags enable row level security;
 alter table public.subscriptions enable row level security;
+alter table public.payouts enable row level security;
 
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles
@@ -228,6 +252,10 @@ create policy "own tags" on public.custom_tags
 drop policy if exists "own subscription read" on public.subscriptions;
 create policy "own subscription read" on public.subscriptions
   for select using (auth.uid() = user_id);
+
+drop policy if exists "own payouts" on public.payouts;
+create policy "own payouts" on public.payouts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================================
 -- AUTO-PROVISION a profile + settings row the moment someone signs up

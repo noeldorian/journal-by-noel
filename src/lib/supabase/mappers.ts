@@ -6,6 +6,7 @@ import type {
   DailyCheckIn,
   InstrumentSymbol,
   NotificationItem,
+  Payout,
   Priority,
   Session,
   Strategy,
@@ -251,7 +252,7 @@ export function rowToSettings(r: Record<string, unknown> | null): UserSettings {
     defaultRiskPct: r ? Number(r.default_risk_pct) : 0.5,
     defaultSession: (r?.default_session as Session) ?? "New York",
     theme: (r?.theme as UserSettings["theme"]) ?? "dark",
-    accentColor: (r?.accent_color as UserSettings["accentColor"]) ?? "green",
+    accentColor: (r?.accent_color as UserSettings["accentColor"]) ?? "purple",
     defaultTags: [],
     emailNotifications: r ? Boolean(r.email_notifications) : true,
     pushNotifications: r ? Boolean(r.push_notifications) : true,
@@ -276,6 +277,35 @@ export function settingsToRow(s: Partial<UserSettings>) {
   if (s.weeklySummary !== undefined) row.weekly_summary = s.weeklySummary;
   if (s.sidebarCollapsed !== undefined) row.sidebar_collapsed = s.sidebarCollapsed;
   return row;
+}
+
+export function payoutToRow(p: Payout, userId: string) {
+  return {
+    id: p.id,
+    user_id: userId,
+    account_id: p.accountId ?? null,
+    date: p.date,
+    amount: p.amount,
+    type: p.type,
+    status: p.status,
+    method: p.method ?? null,
+    notes: p.notes ?? null,
+    created_at: p.createdAt,
+  };
+}
+
+export function rowToPayout(r: Record<string, unknown>): Payout {
+  return {
+    id: r.id as string,
+    accountId: (r.account_id as string) ?? undefined,
+    date: r.date as string,
+    amount: Number(r.amount),
+    type: r.type as Payout["type"],
+    status: r.status as Payout["status"],
+    method: (r.method as string) ?? undefined,
+    notes: (r.notes as string) ?? undefined,
+    createdAt: r.created_at as string,
+  };
 }
 
 export function rowToSubscription(r: Record<string, unknown> | null): Subscription {
