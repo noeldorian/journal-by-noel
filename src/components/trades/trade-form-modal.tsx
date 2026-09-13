@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Modal, ModalHeader, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -308,39 +308,15 @@ function TradeFormBody({ tradeId, onClose }: { tradeId: string | null; onClose: 
           <section>
             <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-text-tertiary">Psychology Ratings</h3>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {PSYCH_FIELDS.map((f) => {
-                const value = draft.psychology?.[f.key] ?? 5;
-                const pct = ((value - 1) / 9) * 100;
-                return (
-                  <div key={f.key}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <Label className="mb-0">{f.label}</Label>
-                      <span className="text-[12px] font-medium text-text-secondary">{value}/10</span>
-                    </div>
-                    <div className="relative flex h-6 items-center">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-                        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
-                      </div>
-                      <input
-                        type="range"
-                        min={1}
-                        max={10}
-                        value={value}
-                        onChange={(e) => patchPsych(f.key, Number(e.target.value))}
-                        className="absolute inset-0 w-full cursor-pointer opacity-0"
-                      />
-                      {/* Decorative emoji "thumb" riding on top of the invisible
-                          native slider, which still handles drag/keyboard input. */}
-                      <span
-                        className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-base leading-none"
-                        style={{ left: `${pct}%` }}
-                      >
-                        {f.emoji}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              {PSYCH_FIELDS.map((f) => (
+                <PsychSlider
+                  key={f.key}
+                  label={f.label}
+                  emoji={f.emoji}
+                  value={draft.psychology?.[f.key] ?? 5}
+                  onChange={(v) => patchPsych(f.key, v)}
+                />
+              ))}
             </div>
             <div className="mt-4">
               <Label>Psychology tags</Label>
@@ -378,6 +354,85 @@ function Stat({ label, value, className }: { label: string; value: string; class
     <div>
       <p className="text-[11px] uppercase tracking-wide text-text-tertiary">{label}</p>
       <p className={`text-[13px] font-semibold tabular-nums-all ${className ?? "text-text-primary"}`}>{value}</p>
+    </div>
+  );
+}
+
+// A 1-10 range slider whose visible "thumb" is an emoji instead of the
+// native dot. The real <input type="range"> stays underneath (invisible)
+// so drag/keyboard/click all keep working — this layer is purely visual:
+// the emoji eases toward its new spot instead of jumping, and picks up a
+// little tilt + motion-blur while it's actively moving, settling back to
+// neutral a beat after the last change (drag release, or the pointer just
+// pausing on a value).
+function PsychSlider({
+  label,
+  emoji,
+  value,
+  onChange,
+}: {
+  label: string;
+  emoji: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [tilt, setTilt] = useState(0);
+  const prevValue = useRef(value);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const pct = ((value - 1) / 9) * 100;
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = Number(e.target.value);
+    const delta = next - prevValue.current;
+    prevValue.current = next;
+    if (delta !== 0) setTilt(Math.max(-16, Math.min(16, delta * 8)));
+    onChange(next);
+
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => setTilt(0), 160);
+  }
+
+  function endDrag() {
+    setDragging(false);
+  }
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <Label className="mb-0">{label}</Label>
+        <span className="text-[12px] font-medium text-text-secondary tabular-nums-all">{value}/10</span>
+      </div>
+      <div className="relative flex h-6 items-center">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-150 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <input
+          type="range"
+          min={1}
+          max={10}
+          value={value}
+          onChange={handleChange}
+          onPointerDown={() => setDragging(true)}
+          onPointerUp={endDrag}
+          onPointerLeave={() => dragging && endDrag()}
+          className="absolute inset-0 w-full cursor-pointer opacity-0"
+        />
+        <span
+          className="pointer-events-none absolute top-1/2 left-0 text-base leading-none transition-[left,transform,filter] duration-150 ease-out will-change-transform"
+          style={{
+            left: `${pct}%`,
+            transform: `translate(-50%, -50%) rotate(${tilt}deg) scale(${dragging ? 1.2 : 1})`,
+            filter: tilt !== 0 ? `blur(${Math.min(1.2, Math.abs(tilt) / 14)}px)` : undefined,
+          }}
+        >
+          {emoji}
+        </span>
+      </div>
     </div>
   );
 }
